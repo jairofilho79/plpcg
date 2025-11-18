@@ -1,4 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_spacing.dart';
+import '../widgets/app_scaffold.dart';
+import '../widgets/search_bar.dart' as search_widget;
+import '../widgets/louvores_list_view.dart';
 
 /// Página inicial da aplicação
 class HomePage extends StatelessWidget {
@@ -6,31 +12,71 @@ class HomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('PLPCG'),
-      ),
-      body: const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Text(
-              'Bem-vindo ao PLPCG',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
+    return AppScaffold(
+      showHeader: true,
+      title: null, // Título padrão "PLPCG" será usado
+      actions: [
+        // Botão Biblioteca
+        IconButton(
+          icon: const Icon(Icons.library_books),
+          color: AppColors.textLight,
+          tooltip: 'Biblioteca',
+          onPressed: () => context.go('/biblioteca'),
+        ),
+        // Botão Offline
+        IconButton(
+          icon: const Icon(Icons.offline_bolt),
+          color: AppColors.textLight,
+          tooltip: 'Offline',
+          onPressed: () => context.go('/offline'),
+        ),
+        // Botão Listas
+        IconButton(
+          icon: const Icon(Icons.playlist_play),
+          color: AppColors.textLight,
+          tooltip: 'Listas',
+          onPressed: () => context.go('/listas'),
+        ),
+        // Botão Sobre
+        IconButton(
+          icon: const Icon(Icons.info_outline),
+          color: AppColors.textLight,
+          tooltip: 'Sobre',
+          onPressed: () => context.go('/sobre'),
+        ),
+      ],
+      body: _buildBody(context),
+    );
+  }
+
+  Widget _buildBody(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Column(
+          children: [
+            // Barra de pesquisa
+            Padding(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              child: search_widget.SearchBar(),
             ),
-            SizedBox(height: 16),
-            Text(
-              'Pesquisador de Louvores em Partitura e Cifra',
-              style: TextStyle(
-                fontSize: 16,
+            // Lista de louvores
+            Expanded(
+              child: LouvoresListView(
+                onLouvorTap: (louvor) {
+                  // TODO: Implementar ação ao clicar no louvor (Fase 4)
+                  // Por enquanto, apenas mostra um snackbar
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Louvor: ${louvor.nome}'),
+                      duration: const Duration(seconds: 1),
+                    ),
+                  );
+                },
               ),
             ),
           ],
-        ),
-      ),
+        );
+      },
     );
   }
 }

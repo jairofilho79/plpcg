@@ -25,6 +25,8 @@ class AppScaffold extends StatelessWidget {
       backgroundColor: AppColors.background,
       appBar: showHeader
           ? AppBar(
+              backgroundColor: AppColors.background,
+              elevation: 0,
               title: title != null
                   ? Text(title!)
                   : GestureDetector(

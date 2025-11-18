@@ -22,5 +22,8 @@ class StorageKeys {
 
   // Playlists
   static const String playlistsBox = 'playlists';
+
+  // Cache de louvores
+  static const String louvoresBox = 'louvores';
 }
 

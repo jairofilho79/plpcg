@@ -7,6 +7,10 @@ import '../../../data/datasources/local_storage_service.dart';
 import '../../../data/datasources/shared_prefs_service.dart';
 import '../../../data/datasources/hive_storage_service.dart';
 import '../../../data/datasources/louvores_api_service.dart';
+import '../../../domain/repositories/louvores_repository.dart';
+import '../../../data/repositories/louvores_repository_impl.dart';
+import '../../../data/models/louvor.dart';
+import '../../../core/errors/result.dart';
 
 /// Provider para SharedPreferences
 final sharedPreferencesProvider = FutureProvider<SharedPreferences>((ref) async {
@@ -46,4 +50,37 @@ final louvoresApiServiceProvider = Provider<LouvoresApiService>((ref) {
   final apiClient = ref.watch(apiClientProvider);
   return LouvoresApiService(apiClient);
 });
+
+/// Provider para Hive Box de louvores
+final louvoresBoxProvider = FutureProvider<Box>((ref) async {
+  return await Hive.openBox(StorageKeys.louvoresBox);
+});
+
+/// Provider para LouvoresRepository
+final louvoresRepositoryProvider = Provider<LouvoresRepository>((ref) {
+  final apiService = ref.watch(louvoresApiServiceProvider);
+  final localStorage = ref.watch(localStorageProvider);
+  final box = ref.watch(louvoresBoxProvider).value;
+  if (box == null) {
+    throw Exception('Louvores Box não inicializado');
+  }
+  return LouvoresRepositoryImpl(
+    apiService: apiService,
+    localStorage: localStorage,
+    louvoresBox: box,
+  );
+});
+
+/// Provider para buscar todos os louvores (FutureProvider)
+final louvoresProvider = FutureProvider<List<Louvor>>((ref) async {
+  final repository = ref.watch(louvoresRepositoryProvider);
+  final result = await repository.getLouvores();
+  return switch (result) {
+    Success(data: final louvores) => louvores,
+    Error(failure: final failure) => throw failure,
+  };
+});
+
+/// Provider para query de busca (StateProvider)
+final searchQueryProvider = StateProvider<String>((ref) => '');
 
