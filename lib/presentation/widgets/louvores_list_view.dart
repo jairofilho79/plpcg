@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
@@ -14,17 +15,23 @@ class LouvoresListView extends ConsumerWidget {
   const LouvoresListView({
     super.key,
     this.onLouvorTap,
+    this.showResultCount = true,
   });
 
   final ValueChanged<Louvor>? onLouvorTap;
+  final bool showResultCount;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final filteredLouvoresAsync = ref.watch(filteredLouvoresProvider);
     final louvoresAsync = ref.watch(louvoresProvider);
 
-    return louvoresAsync.when(
-      data: (louvores) {
-        if (louvores.isEmpty) {
+    return filteredLouvoresAsync.when(
+      data: (filteredLouvores) {
+        // Obter total de louvores para contador
+        final totalLouvores = louvoresAsync.valueOrNull?.length ?? 0;
+
+        if (filteredLouvores.isEmpty) {
           return Center(
             child: Padding(
               padding: const EdgeInsets.all(AppSpacing.lg),
@@ -38,17 +45,54 @@ class LouvoresListView extends ConsumerWidget {
                   ),
                   const SizedBox(height: AppSpacing.md),
                   Text(
-                    'Nenhum louvor encontrado',
-                    style: AppTextStyles.body,
+                    'Nenhum resultado encontrado',
+                    style: AppTextStyles.body.copyWith(
+                      color: AppColors.textLight,
+                    ),
                     textAlign: TextAlign.center,
                   ),
+                  if (showResultCount && totalLouvores > 0) ...[
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      'Tente ajustar os filtros ou a busca',
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.placeholder,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
                 ],
               ),
             ),
           );
         }
 
-        return _buildGridView(context, louvores);
+        return Column(
+          children: [
+            // Contador de resultados
+            if (showResultCount)
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.sm,
+                ),
+                child: Row(
+                  children: [
+                    Text(
+                      'Mostrando ${filteredLouvores.length} de $totalLouvores louvores',
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.textLight.withOpacity(0.8),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            // Grid de louvores
+            Expanded(
+              child: _buildGridView(context, filteredLouvores),
+            ),
+          ],
+        );
       },
       loading: () => const LouvoresLoadingShimmer(),
       error: (error, stackTrace) => AppErrorWidget(
@@ -90,7 +134,10 @@ class LouvoresListView extends ConsumerWidget {
         return LouvorCard(
           louvor: louvor,
           onTap: () => onLouvorTap?.call(louvor),
-        );
+        )
+            .animate()
+            .fadeIn(duration: 200.ms, delay: (index * 30).ms)
+            .slideY(begin: 0.1, end: 0, duration: 300.ms, delay: (index * 30).ms);
       },
     );
   }

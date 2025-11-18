@@ -34,6 +34,12 @@ class AppTextStyles {
         color: AppColors.textDark,
       );
 
+  static TextStyle get heading5 => GoogleFonts.ebGaramond(
+        fontSize: 18,
+        fontWeight: FontWeight.w500,
+        color: AppColors.textDark,
+      );
+
   // Body com Open Sans
   static TextStyle get body => GoogleFonts.openSans(
         fontSize: 16,

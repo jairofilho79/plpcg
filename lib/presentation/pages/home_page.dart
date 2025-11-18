@@ -5,6 +5,9 @@ import '../../core/theme/app_spacing.dart';
 import '../widgets/app_scaffold.dart';
 import '../widgets/search_bar.dart' as search_widget;
 import '../widgets/louvores_list_view.dart';
+import '../widgets/category_filters.dart';
+import '../widgets/classification_filters.dart';
+import '../widgets/active_filters_indicator.dart';
 
 /// Página inicial da aplicação
 class HomePage extends StatelessWidget {
@@ -59,6 +62,15 @@ class HomePage extends StatelessWidget {
               padding: const EdgeInsets.all(AppSpacing.md),
               child: search_widget.SearchBar(),
             ),
+            // Filtros de categoria
+            const CategoryFilters(),
+            const SizedBox(height: AppSpacing.sm),
+            // Filtros de classificação
+            const ClassificationFilters(),
+            const SizedBox(height: AppSpacing.sm),
+            // Indicador de filtros ativos
+            const ActiveFiltersIndicator(),
+            const SizedBox(height: AppSpacing.sm),
             // Lista de louvores
             Expanded(
               child: LouvoresListView(
