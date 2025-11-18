@@ -6,6 +6,7 @@ import '../../core/theme/app_border_radius.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../data/models/louvor.dart';
 import '../providers/dependencies_provider.dart';
+import 'save_playlist_dialog.dart';
 
 /// Widget de chips horizontais scrolláveis para o carousel de louvores
 class CarouselChips extends ConsumerStatefulWidget {
@@ -163,6 +164,14 @@ class _CarouselChipsState extends ConsumerState<CarouselChips> {
     }
   }
 
+  /// Mostra dialog para salvar playlist
+  void _showSavePlaylistDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => const SavePlaylistDialog(),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final carouselLouvores = ref.watch(carouselLouvoresProvider);
@@ -216,6 +225,13 @@ class _CarouselChipsState extends ConsumerState<CarouselChips> {
               onPressed: _navigateNext,
               tooltip: 'Próximo louvor',
             ),
+          // Botão salvar como playlist
+          IconButton(
+            icon: const Icon(Icons.save),
+            color: AppColors.gold,
+            onPressed: () => _showSavePlaylistDialog(context),
+            tooltip: 'Salvar como playlist',
+          ),
           // Botão limpar carousel
           IconButton(
             icon: const Icon(Icons.clear_all),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../presentation/pages/home_page.dart';
+import '../../presentation/pages/listas_page.dart';
 
 /// Configuração de rotas da aplicação usando go_router
 final appRouter = GoRouter(
@@ -105,18 +106,6 @@ class OfflinePage extends StatelessWidget {
   }
 }
 
-/// Placeholder para página de listas
-class ListasPage extends StatelessWidget {
-  const ListasPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Listas')),
-      body: const Center(child: Text('Listas - Em desenvolvimento')),
-    );
-  }
-}
 
 /// Placeholder para página sobre
 class SobrePage extends StatelessWidget {

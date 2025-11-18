@@ -11,8 +11,12 @@ import '../../../data/datasources/hive_storage_service.dart';
 import '../../../data/datasources/louvores_api_service.dart';
 import '../../../domain/repositories/louvores_repository.dart';
 import '../../../data/repositories/louvores_repository_impl.dart';
+import '../../../domain/repositories/playlist_repository.dart';
+import '../../../data/repositories/playlist_repository_impl.dart';
 import '../../../data/models/louvor.dart';
+import '../../../data/models/playlist.dart';
 import '../../../core/errors/result.dart';
+import '../../../core/errors/failures.dart';
 import '../../../core/models/pdf_viewer_mode.dart';
 import '../../../core/services/pdf_action_service.dart';
 
@@ -504,4 +508,147 @@ class CarouselLouvoresNotifier extends StateNotifier<List<Louvor>> {
     }
   }
 }
+
+/// Provider para PlaylistRepository
+final playlistRepositoryProvider = Provider<PlaylistRepository>((ref) {
+  final box = ref.watch(playlistsBoxProvider).value;
+  if (box == null) {
+    throw Exception('Playlists Box não inicializado');
+  }
+  return PlaylistRepositoryImpl(box: box);
+});
+
+/// Provider para playlists (StateNotifierProvider)
+final playlistsProvider = StateNotifierProvider<PlaylistsNotifier, List<Playlist>>((ref) {
+  final notifier = PlaylistsNotifier(ref, <Playlist>[]);
+  
+  // Carregar do storage quando o repository estiver pronto
+  final repository = ref.watch(playlistRepositoryProvider);
+  Future.microtask(() async {
+    final result = await repository.getPlaylists();
+    if (result.isSuccess) {
+      notifier.loadFromStorage(result.dataOrNull!);
+    }
+  });
+  
+  return notifier;
+});
+
+/// Notifier para gerenciar playlists com persistência
+class PlaylistsNotifier extends StateNotifier<List<Playlist>> {
+  PlaylistsNotifier(this.ref, List<Playlist> initial) : super(initial);
+
+  final Ref ref;
+  bool _hasLoaded = false;
+
+  /// Carrega playlists do storage
+  void loadFromStorage(List<Playlist> playlists) {
+    if (_hasLoaded) return; // Evitar recarregar múltiplas vezes
+    _hasLoaded = true;
+    state = playlists;
+  }
+
+  /// Cria uma nova playlist
+  Future<Result<Playlist>> createPlaylist(Playlist playlist) async {
+    try {
+      final repository = ref.read(playlistRepositoryProvider);
+      final result = await repository.createPlaylist(playlist);
+      
+      if (result.isSuccess) {
+        final newState = List<Playlist>.from(state)..add(result.dataOrNull!);
+        state = newState;
+      }
+      
+      return result;
+    } catch (e) {
+      return Error(CacheFailure('Erro ao criar playlist: ${e.toString()}'));
+    }
+  }
+
+  /// Atualiza uma playlist existente
+  Future<Result<Playlist>> updatePlaylist(Playlist playlist) async {
+    try {
+      final repository = ref.read(playlistRepositoryProvider);
+      final result = await repository.updatePlaylist(playlist);
+      
+      if (result.isSuccess) {
+        final index = state.indexWhere((p) => p.id == playlist.id);
+        if (index != -1) {
+          final newState = List<Playlist>.from(state);
+          newState[index] = result.dataOrNull!;
+          state = newState;
+        }
+      }
+      
+      return result;
+    } catch (e) {
+      return Error(CacheFailure('Erro ao atualizar playlist: ${e.toString()}'));
+    }
+  }
+
+  /// Deleta uma playlist
+  Future<Result<void>> deletePlaylist(String id) async {
+    try {
+      final repository = ref.read(playlistRepositoryProvider);
+      final result = await repository.deletePlaylist(id);
+      
+      if (result.isSuccess) {
+        final newState = state.where((p) => p.id != id).toList();
+        state = newState;
+      }
+      
+      return result;
+    } catch (e) {
+      return Error(CacheFailure('Erro ao deletar playlist: ${e.toString()}'));
+    }
+  }
+
+  /// Toggle favorita de uma playlist
+  Future<Result<Playlist>> toggleFavorita(String id) async {
+    try {
+      final playlist = state.firstWhere((p) => p.id == id);
+      final updated = playlist.copyWith(favorita: !playlist.favorita);
+      return await updatePlaylist(updated);
+    } catch (e) {
+      return Error(CacheFailure('Erro ao favoritar playlist: ${e.toString()}'));
+    }
+  }
+}
+
+/// Provider para query de busca de playlists (StateProvider)
+final playlistSearchQueryProvider = StateProvider<String>((ref) => '');
+
+/// Provider para filtro de favoritas (StateProvider)
+final playlistFavoritesFilterProvider = StateProvider<bool>((ref) => false);
+
+/// Provider para playlists filtradas (computed)
+final filteredPlaylistsProvider = Provider<List<Playlist>>((ref) {
+  final playlists = ref.watch(playlistsProvider);
+  final searchQuery = ref.watch(playlistSearchQueryProvider);
+  final favoritesOnly = ref.watch(playlistFavoritesFilterProvider);
+
+  var filtered = playlists;
+
+  // Aplicar busca por nome
+  if (searchQuery.isNotEmpty) {
+    final normalizedQuery = TextNormalization.normalizeText(searchQuery);
+    filtered = filtered.where((playlist) {
+      return TextNormalization.containsNormalized(playlist.nome, searchQuery);
+    }).toList();
+  }
+
+  // Aplicar filtro de favoritas
+  if (favoritesOnly) {
+    filtered = filtered.where((playlist) => playlist.favorita).toList();
+  }
+
+  // Ordenar: favoritas primeiro, depois por data de criação (mais recente primeiro)
+  filtered.sort((a, b) {
+    if (a.favorita && !b.favorita) return -1;
+    if (!a.favorita && b.favorita) return 1;
+    return b.createdAt.compareTo(a.createdAt);
+  });
+
+  return filtered;
+});
 
