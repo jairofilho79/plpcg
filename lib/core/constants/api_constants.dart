@@ -1,10 +1,21 @@
+import 'package:flutter/foundation.dart';
+
 /// Constantes da API
 class ApiConstants {
   ApiConstants._();
 
-  // Base URL - pode ser relativa para web ou absoluta para mobile
-  // Em produção, isso pode ser configurado via environment variables
-  static const String baseUrl = ''; // Relativo para web, ou URL completa para mobile
+  // Base URL configurável por ambiente
+  // Em dev: usa plpcjf.org (requisição externa)
+  // Em produção: usa / (relativo, busca direto do bucket R2)
+  static String get baseUrl {
+    if (kDebugMode) {
+      // Modo desenvolvimento: usar URL completa
+      return 'https://plpcjf.org';
+    } else {
+      // Modo produção: usar URL relativa (busca do bucket R2)
+      return '';
+    }
+  }
 
   // Endpoints
   static const String louvoresManifest = '/louvores-manifest.json';
