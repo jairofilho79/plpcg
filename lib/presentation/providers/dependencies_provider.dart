@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -12,6 +13,8 @@ import '../../../domain/repositories/louvores_repository.dart';
 import '../../../data/repositories/louvores_repository_impl.dart';
 import '../../../data/models/louvor.dart';
 import '../../../core/errors/result.dart';
+import '../../../core/models/pdf_viewer_mode.dart';
+import '../../../core/services/pdf_action_service.dart';
 
 /// Provider para SharedPreferences
 final sharedPreferencesProvider = FutureProvider<SharedPreferences>((ref) async {
@@ -274,5 +277,130 @@ final availableClassificationsProvider = Provider<AsyncValue<List<String>>>((ref
     loading: () => const AsyncValue.loading(),
     error: (error, stackTrace) => AsyncValue.error(error, stackTrace),
   );
+});
+
+/// Provider para modo preferido de visualização de PDF (StateNotifierProvider)
+final preferredPdfViewerModeProvider = StateNotifierProvider<PreferredPdfViewerModeNotifier, PdfViewerMode>((ref) {
+  final notifier = PreferredPdfViewerModeNotifier(ref);
+  // Carregar do storage na inicialização (não bloqueia)
+  Future.microtask(() => notifier.loadFromStorage());
+  return notifier;
+});
+
+/// Notifier para gerenciar modo preferido de visualização com persistência
+class PreferredPdfViewerModeNotifier extends StateNotifier<PdfViewerMode> {
+  PreferredPdfViewerModeNotifier(this.ref) : super(PdfViewerMode.online) {
+    // Inicializar com valor padrão, será atualizado pelo loadFromStorage
+  }
+
+  final Ref ref;
+  bool _isLoading = false;
+
+  Future<void> loadFromStorage() async {
+    if (_isLoading || !mounted) return; // Evitar múltiplas chamadas simultâneas
+    _isLoading = true;
+    
+    try {
+      // Aguardar SharedPreferences estar pronto
+      final prefsAsync = ref.read(sharedPreferencesProvider);
+      final prefs = prefsAsync.valueOrNull;
+      
+      if (prefs != null) {
+        try {
+          final localStorage = ref.read(localStorageProvider);
+          final saved = await localStorage.getString(StorageKeys.preferredPdfViewerMode);
+          if (saved != null && mounted) {
+            final mode = PdfViewerModeExtension.fromJson(saved);
+            // Só atualizar se for diferente do estado atual
+            if (state != mode) {
+              debugPrint('Carregando modo preferido do storage: ${mode.toJson()}');
+              state = mode;
+            }
+          }
+        } catch (e) {
+          debugPrint('Erro ao carregar modo preferido: $e');
+        }
+      } else {
+        // Se não estiver pronto, aguardar um pouco e tentar novamente
+        await Future.delayed(const Duration(milliseconds: 100));
+        if (!_isLoading && mounted) {
+          // Se ainda não estiver carregando (não foi cancelado), tentar novamente
+          _isLoading = false;
+          loadFromStorage();
+          return;
+        }
+      }
+    } catch (e) {
+      debugPrint('Erro ao carregar modo preferido: $e');
+    } finally {
+      _isLoading = false;
+    }
+  }
+
+  Future<void> setMode(PdfViewerMode mode) async {
+    if (!mounted) {
+      debugPrint('Tentativa de alterar modo após dispose');
+      return;
+    }
+    
+    if (state == mode) {
+      // Já está no modo selecionado, não precisa fazer nada
+      return;
+    }
+    
+    debugPrint('Alterando modo de visualização de ${state.toJson()} para ${mode.toJson()}');
+    
+    // Atualizar estado imediatamente (síncrono)
+    if (mounted) {
+      state = mode;
+    }
+    
+    // Salvar de forma assíncrona
+    if (mounted) {
+      await _saveToStorage();
+      if (mounted) {
+        debugPrint('Modo salvo: ${state.toJson()}');
+      }
+    }
+  }
+
+  Future<void> _saveToStorage() async {
+    if (!mounted) {
+      debugPrint('Tentativa de salvar após dispose');
+      return;
+    }
+    
+    try {
+      // Aguardar SharedPreferences estar pronto
+      final prefsAsync = ref.read(sharedPreferencesProvider);
+      final prefs = prefsAsync.valueOrNull;
+      
+      if (prefs != null && mounted) {
+        try {
+          final localStorage = ref.read(localStorageProvider);
+          await localStorage.saveString(StorageKeys.preferredPdfViewerMode, state.toJson());
+        } catch (e) {
+          debugPrint('Erro ao salvar modo preferido: $e');
+        }
+      } else if (mounted) {
+        // Se não estiver pronto, tentar novamente após um delay
+        debugPrint('SharedPreferences ainda carregando, tentando novamente...');
+        Future.delayed(const Duration(milliseconds: 100), () {
+          if (mounted) {
+            _saveToStorage();
+          }
+        });
+      }
+    } catch (e) {
+      // Log do erro mas não interrompe a atualização do estado
+      debugPrint('Erro ao salvar modo preferido: $e');
+    }
+  }
+}
+
+/// Provider para PdfActionService
+final pdfActionServiceProvider = Provider<PdfActionService>((ref) {
+  final apiClient = ref.watch(apiClientProvider);
+  return PdfActionService(apiClient);
 });
 

@@ -8,6 +8,7 @@ import '../widgets/louvores_list_view.dart';
 import '../widgets/category_filters.dart';
 import '../widgets/classification_filters.dart';
 import '../widgets/active_filters_indicator.dart';
+import '../widgets/pdf_viewer_selector.dart';
 
 /// Página inicial da aplicação
 class HomePage extends StatelessWidget {
@@ -68,6 +69,9 @@ class HomePage extends StatelessWidget {
             // Filtros de classificação
             const ClassificationFilters(),
             const SizedBox(height: AppSpacing.sm),
+            // Seletor de modo de visualização de PDF
+            const PdfViewerSelector(),
+            const SizedBox(height: AppSpacing.sm),
             // Indicador de filtros ativos
             const ActiveFiltersIndicator(),
             const SizedBox(height: AppSpacing.sm),
@@ -75,14 +79,8 @@ class HomePage extends StatelessWidget {
             Expanded(
               child: LouvoresListView(
                 onLouvorTap: (louvor) {
-                  // TODO: Implementar ação ao clicar no louvor (Fase 4)
-                  // Por enquanto, apenas mostra um snackbar
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Louvor: ${louvor.nome}'),
-                      duration: const Duration(seconds: 1),
-                    ),
-                  );
+                  // Ação de PDF é tratada diretamente no LouvorCard
+                  // Este callback pode ser usado para outras ações futuras
                 },
               ),
             ),

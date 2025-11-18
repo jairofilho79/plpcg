@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/app_border_radius.dart';
 import '../../core/theme/app_shadows.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../data/models/louvor.dart';
+import '../../core/services/pdf_action_service.dart';
+import '../providers/dependencies_provider.dart';
 import 'app_card.dart';
 
 /// Card de exibição de louvor
-class LouvorCard extends StatelessWidget {
+class LouvorCard extends ConsumerWidget {
   const LouvorCard({
     super.key,
     required this.louvor,
@@ -19,9 +22,9 @@ class LouvorCard extends StatelessWidget {
   final VoidCallback? onTap;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return AppCard(
-      onTap: onTap,
+      onTap: onTap ?? () => _handlePdfAction(context, ref),
       elevation: AppCardElevation.medium,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -100,6 +103,44 @@ class LouvorCard extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  /// Executa ação de PDF baseada no modo preferido
+  Future<void> _handlePdfAction(BuildContext context, WidgetRef ref) async {
+    final pdfActionService = ref.read(pdfActionServiceProvider);
+    final preferredMode = ref.read(preferredPdfViewerModeProvider);
+
+    // Mostrar loading
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Abrindo PDF...'),
+          duration: Duration(seconds: 1),
+        ),
+      );
+    }
+
+    // Executar ação
+    final result = await pdfActionService.executePdfAction(
+      mode: preferredMode,
+      pdfId: louvor.pdfId,
+      pdfPath: louvor.pdf,
+      louvorNome: louvor.nome,
+    );
+
+    // Mostrar resultado
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result.message),
+          backgroundColor: result.isSuccess
+              ? Colors.green
+              : Colors.red,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
   }
 }
 
