@@ -9,6 +9,7 @@ import '../widgets/category_filters.dart';
 import '../widgets/classification_filters.dart';
 import '../widgets/active_filters_indicator.dart';
 import '../widgets/pdf_viewer_selector.dart';
+import '../widgets/carousel_chips.dart';
 
 /// Página inicial da aplicação
 class HomePage extends StatelessWidget {
@@ -74,6 +75,9 @@ class HomePage extends StatelessWidget {
             const SizedBox(height: AppSpacing.sm),
             // Indicador de filtros ativos
             const ActiveFiltersIndicator(),
+            const SizedBox(height: AppSpacing.sm),
+            // Carousel de louvores
+            const CarouselChips(),
             const SizedBox(height: AppSpacing.sm),
             // Lista de louvores
             Expanded(

@@ -23,6 +23,9 @@ class LouvorCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final carouselLouvores = ref.watch(carouselLouvoresProvider);
+    final isInCarousel = carouselLouvores.any((l) => l.pdfId == louvor.pdfId);
+
     return AppCard(
       onTap: onTap ?? () => _handlePdfAction(context, ref),
       elevation: AppCardElevation.medium,
@@ -30,23 +33,42 @@ class LouvorCard extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Número do louvor
-          Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.sm,
-              vertical: AppSpacing.xs,
-            ),
-            decoration: BoxDecoration(
-              color: AppColors.gold,
-              borderRadius: AppBorderRadius.smallRadius,
-            ),
-            child: Text(
-              louvor.numero,
-              style: AppTextStyles.label.copyWith(
-                color: AppColors.textDark,
-                fontWeight: FontWeight.bold,
+          // Header com número e botão de adicionar ao carousel
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              // Número do louvor
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm,
+                  vertical: AppSpacing.xs,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.gold,
+                  borderRadius: AppBorderRadius.smallRadius,
+                ),
+                child: Text(
+                  louvor.numero,
+                  style: AppTextStyles.label.copyWith(
+                    color: AppColors.textDark,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
-            ),
+              // Botão de adicionar ao carousel
+              IconButton(
+                icon: Icon(
+                  isInCarousel ? Icons.check_circle : Icons.add_circle_outline,
+                  color: isInCarousel ? AppColors.success : AppColors.gold,
+                ),
+                onPressed: () => _handleAddToCarousel(context, ref),
+                tooltip: isInCarousel
+                    ? 'Já está no carousel'
+                    : 'Adicionar ao carousel',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
+            ],
           ),
           const SizedBox(height: AppSpacing.sm),
           // Nome do louvor
@@ -138,6 +160,41 @@ class LouvorCard extends ConsumerWidget {
               ? Colors.green
               : Colors.red,
           duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
+  /// Adiciona o louvor ao carousel
+  Future<void> _handleAddToCarousel(BuildContext context, WidgetRef ref) async {
+    final carouselNotifier = ref.read(carouselLouvoresProvider.notifier);
+    final carouselLouvores = ref.read(carouselLouvoresProvider);
+    final isInCarousel = carouselLouvores.any((l) => l.pdfId == louvor.pdfId);
+
+    if (isInCarousel) {
+      // Já está no carousel, mostrar mensagem
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${louvor.nome} já está no carousel'),
+            duration: const Duration(seconds: 2),
+            backgroundColor: AppColors.info,
+          ),
+        );
+      }
+      return;
+    }
+
+    // Adicionar ao carousel
+    await carouselNotifier.addLouvor(louvor);
+
+    // Mostrar feedback
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${louvor.nome} adicionado ao carousel'),
+          duration: const Duration(seconds: 2),
+          backgroundColor: AppColors.success,
         ),
       );
     }

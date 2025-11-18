@@ -404,3 +404,104 @@ final pdfActionServiceProvider = Provider<PdfActionService>((ref) {
   return PdfActionService(apiClient);
 });
 
+/// Provider para carregar PDF IDs do carousel salvos do storage
+final savedCarouselPdfIdsProvider = FutureProvider<List<String>>((ref) async {
+  final localStorage = ref.watch(localStorageProvider);
+  final saved = await localStorage.getStringList(StorageKeys.carouselPdfIds);
+  return saved ?? <String>[];
+});
+
+/// Provider para louvores do carousel (StateNotifierProvider)
+final carouselLouvoresProvider = StateNotifierProvider<CarouselLouvoresNotifier, List<Louvor>>((ref) {
+  final notifier = CarouselLouvoresNotifier(ref, <Louvor>[]);
+  
+  // Carregar do storage quando os dados estiverem prontos
+  final saved = ref.watch(savedCarouselPdfIdsProvider);
+  final louvoresAsync = ref.watch(louvoresProvider);
+  
+  // Aguardar ambos estarem prontos antes de carregar
+  saved.whenData((pdfIds) {
+    louvoresAsync.whenData((louvores) {
+      // Usar Future.microtask para evitar chamadas durante build
+      Future.microtask(() {
+        notifier.loadFromStorage(pdfIds, louvores);
+      });
+    });
+  });
+  
+  return notifier;
+});
+
+/// Notifier para gerenciar louvores do carousel com persistência
+class CarouselLouvoresNotifier extends StateNotifier<List<Louvor>> {
+  CarouselLouvoresNotifier(this.ref, List<Louvor> initial) : super(initial);
+
+  final Ref ref;
+  bool _hasLoaded = false;
+
+  /// Carrega louvores do carousel baseado nos PDF IDs salvos
+  void loadFromStorage(List<String> pdfIds, List<Louvor> allLouvores) {
+    if (_hasLoaded) return; // Evitar recarregar múltiplas vezes
+    _hasLoaded = true;
+
+    if (pdfIds.isEmpty) {
+      state = <Louvor>[];
+      return;
+    }
+
+    // Mapear PDF IDs para louvores, filtrando apenas os que existem
+    final carouselLouvores = <Louvor>[];
+    for (final pdfId in pdfIds) {
+      try {
+        final louvor = allLouvores.firstWhere(
+          (l) => l.pdfId == pdfId,
+        );
+        carouselLouvores.add(louvor);
+      } catch (e) {
+        // Louvor não encontrado (pode ter sido removido do manifest)
+        debugPrint('Louvor não encontrado no manifest: $pdfId');
+      }
+    }
+
+    state = carouselLouvores;
+  }
+
+  /// Adiciona um louvor ao carousel
+  Future<void> addLouvor(Louvor louvor) async {
+    // Verificar se já existe (evitar duplicatas)
+    if (state.any((l) => l.pdfId == louvor.pdfId)) {
+      debugPrint('Louvor já está no carousel: ${louvor.pdfId}');
+      return;
+    }
+
+    final newState = List<Louvor>.from(state)..add(louvor);
+    state = newState;
+    await _saveToStorage();
+  }
+
+  /// Remove um louvor do carousel
+  Future<void> removeLouvor(String pdfId) async {
+    final newState = state.where((l) => l.pdfId != pdfId).toList();
+    state = newState;
+    await _saveToStorage();
+  }
+
+  /// Limpa todos os louvores do carousel
+  Future<void> clear() async {
+    state = <Louvor>[];
+    await _saveToStorage();
+  }
+
+  /// Salva PDF IDs no storage
+  Future<void> _saveToStorage() async {
+    try {
+      final localStorage = ref.read(localStorageProvider);
+      final pdfIds = state.map((l) => l.pdfId).toList();
+      await localStorage.saveStringList(StorageKeys.carouselPdfIds, pdfIds);
+      debugPrint('Carousel salvo: ${pdfIds.length} louvores');
+    } catch (e) {
+      debugPrint('Erro ao salvar carousel: $e');
+    }
+  }
+}
+
