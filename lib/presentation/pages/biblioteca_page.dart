@@ -1,55 +1,63 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
+import '../../data/models/louvor.dart';
 import '../widgets/app_scaffold.dart';
 import '../widgets/search_bar.dart' as search_widget;
-import '../widgets/louvores_list_view.dart';
 import '../widgets/category_filters.dart';
 import '../widgets/classification_filters.dart';
 import '../widgets/active_filters_indicator.dart';
 import '../widgets/pdf_viewer_selector.dart';
-import '../widgets/carousel_chips.dart';
+import '../widgets/sort_selector.dart';
+import '../widgets/items_per_page_selector.dart';
+import '../widgets/pagination_controls.dart';
+import '../widgets/louvores_paginated_list_view.dart';
+import '../providers/dependencies_provider.dart';
 
-/// Página inicial da aplicação
-class HomePage extends StatelessWidget {
-  const HomePage({super.key});
+/// Página de biblioteca com paginação e ordenação
+class BibliotecaPage extends ConsumerStatefulWidget {
+  const BibliotecaPage({super.key});
+
+  @override
+  ConsumerState<BibliotecaPage> createState() => _BibliotecaPageState();
+}
+
+class _BibliotecaPageState extends ConsumerState<BibliotecaPage> {
+  @override
+  void initState() {
+    super.initState();
+    // Resetar página para 1 quando entrar na página
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(currentPageProvider.notifier).state = 1;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
+    // Observar mudanças nos filtros e resetar página
+    ref.listen(filteredLouvoresProvider, (previous, next) {
+      if (previous != null && next.valueOrNull != previous.valueOrNull) {
+        // Filtros mudaram, resetar para página 1
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          ref.read(currentPageProvider.notifier).state = 1;
+        });
+      }
+    });
+
+    // Observar mudanças na ordenação e resetar página
+    ref.listen(sortOrderProvider, (previous, next) {
+      if (previous != next) {
+        // Ordenação mudou, resetar para página 1
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          ref.read(currentPageProvider.notifier).state = 1;
+        });
+      }
+    });
+
     return AppScaffold(
       showHeader: true,
-      title: null, // Título padrão "PLPCG" será usado
-      actions: [
-        // Botão Biblioteca
-        IconButton(
-          icon: const Icon(Icons.library_books),
-          color: AppColors.textLight,
-          tooltip: 'Biblioteca',
-          onPressed: () => context.go('/biblioteca'),
-        ),
-        // Botão Offline
-        IconButton(
-          icon: const Icon(Icons.offline_bolt),
-          color: AppColors.textLight,
-          tooltip: 'Offline',
-          onPressed: () => context.go('/offline'),
-        ),
-        // Botão Listas
-        IconButton(
-          icon: const Icon(Icons.playlist_play),
-          color: AppColors.textLight,
-          tooltip: 'Listas',
-          onPressed: () => context.go('/listas'),
-        ),
-        // Botão Sobre
-        IconButton(
-          icon: const Icon(Icons.info_outline),
-          color: AppColors.textLight,
-          tooltip: 'Sobre',
-          onPressed: () => context.go('/sobre'),
-        ),
-      ],
+      title: 'Biblioteca',
       body: _buildBody(context),
     );
   }
@@ -92,13 +100,19 @@ class HomePage extends StatelessWidget {
                   // Indicador de filtros ativos
                   const ActiveFiltersIndicator(),
                   const SizedBox(height: AppSpacing.sm),
-                  // Carousel de louvores
-                  const CarouselChips(),
+                  // Seletor de ordenação
+                  const SortSelector(),
                   const SizedBox(height: AppSpacing.sm),
-                  // Lista de louvores com altura mínima
+                  // Seletor de itens por página
+                  const ItemsPerPageSelector(),
+                  const SizedBox(height: AppSpacing.sm),
+                  // Controles de paginação
+                  const PaginationControls(),
+                  const SizedBox(height: AppSpacing.sm),
+                  // Lista paginada de louvores com altura mínima
                   SizedBox(
                     height: minListHeight,
-                    child: LouvoresListView(
+                    child: LouvoresPaginatedListView(
                       onLouvorTap: (louvor) {
                         // Ação de PDF é tratada diretamente no LouvorCard
                         // Este callback pode ser usado para outras ações futuras

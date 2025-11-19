@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../presentation/pages/home_page.dart';
 import '../../presentation/pages/listas_page.dart';
+import '../../presentation/pages/biblioteca_page.dart';
+import '../../presentation/pages/leitor_page.dart';
 
 /// Configuração de rotas da aplicação usando go_router
 final appRouter = GoRouter(
@@ -24,6 +26,9 @@ final appRouter = GoRouter(
         final file = state.uri.queryParameters['file'] ?? '';
         final titulo = state.uri.queryParameters['titulo'] ?? '';
         final subtitulo = state.uri.queryParameters['subtitulo'] ?? '';
+        debugPrint('[AppRouter] Leitor - file: $file');
+        debugPrint('[AppRouter] Leitor - titulo: $titulo');
+        debugPrint('[AppRouter] Leitor - subtitulo: $subtitulo');
         return LeitorPage(
           file: file,
           titulo: titulo,
@@ -49,49 +54,7 @@ final appRouter = GoRouter(
   ],
 );
 
-/// Placeholder para página de biblioteca
-class BibliotecaPage extends StatelessWidget {
-  const BibliotecaPage({super.key});
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Biblioteca')),
-      body: const Center(child: Text('Biblioteca - Em desenvolvimento')),
-    );
-  }
-}
-
-/// Placeholder para página de leitor
-class LeitorPage extends StatelessWidget {
-  const LeitorPage({
-    super.key,
-    required this.file,
-    required this.titulo,
-    required this.subtitulo,
-  });
-
-  final String file;
-  final String titulo;
-  final String subtitulo;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(titulo.isNotEmpty ? titulo : 'Leitor')),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text('Leitor - Em desenvolvimento'),
-            if (file.isNotEmpty) Text('Arquivo: $file'),
-            if (subtitulo.isNotEmpty) Text('Subtítulo: $subtitulo'),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 /// Placeholder para página offline
 class OfflinePage extends StatelessWidget {

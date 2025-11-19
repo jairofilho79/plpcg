@@ -39,8 +39,9 @@ class PdfActionService {
         case PdfViewerMode.download:
           return await _downloadPdf(effectivePdfPath, pdfId, louvorNome);
         case PdfViewerMode.internal:
-          // Será implementado na Fase 8 (Leitor Interno)
-          return PdfActionResult.error('Leitor interno ainda não implementado');
+          // Navegação será feita pelo widget que chama o serviço
+          // Retornar sucesso para indicar que a ação foi iniciada
+          return PdfActionResult.success('Abrindo leitor interno...');
       }
     } catch (e) {
       return PdfActionResult.error('Erro ao executar ação: $e');

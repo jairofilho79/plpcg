@@ -10,28 +10,26 @@ import 'loading_shimmer.dart';
 import 'error_widget.dart';
 import 'louvor_card.dart';
 
-/// Widget para exibir lista de louvores com estados (loading, error, success)
-class LouvoresListView extends ConsumerWidget {
-  const LouvoresListView({
+/// Widget para exibir lista paginada de louvores
+class LouvoresPaginatedListView extends ConsumerWidget {
+  const LouvoresPaginatedListView({
     super.key,
     this.onLouvorTap,
-    this.showResultCount = true,
   });
 
   final ValueChanged<Louvor>? onLouvorTap;
-  final bool showResultCount;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final filteredLouvoresAsync = ref.watch(filteredLouvoresProvider);
-    final louvoresAsync = ref.watch(louvoresProvider);
+    final paginatedLouvoresAsync = ref.watch(paginatedLouvoresProvider);
+    final sortedLouvoresAsync = ref.watch(sortedLouvoresProvider);
 
-    return filteredLouvoresAsync.when(
-      data: (filteredLouvores) {
-        // Obter total de louvores para contador
-        final totalLouvores = louvoresAsync.valueOrNull?.length ?? 0;
+    return paginatedLouvoresAsync.when(
+      data: (paginatedLouvores) {
+        // Obter total de louvores filtrados para contador
+        final totalLouvores = sortedLouvoresAsync.valueOrNull?.length ?? 0;
 
-        if (filteredLouvores.isEmpty) {
+        if (paginatedLouvores.isEmpty && totalLouvores == 0) {
           return Center(
             child: Padding(
               padding: const EdgeInsets.all(AppSpacing.lg),
@@ -51,16 +49,14 @@ class LouvoresListView extends ConsumerWidget {
                     ),
                     textAlign: TextAlign.center,
                   ),
-                  if (showResultCount && totalLouvores > 0) ...[
-                    const SizedBox(height: AppSpacing.sm),
-                    Text(
-                      'Tente ajustar os filtros ou a busca',
-                      style: AppTextStyles.caption.copyWith(
-                        color: AppColors.placeholder,
-                      ),
-                      textAlign: TextAlign.center,
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    'Tente ajustar os filtros ou a busca',
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.placeholder,
                     ),
-                  ],
+                    textAlign: TextAlign.center,
+                  ),
                 ],
               ),
             ),
@@ -70,26 +66,25 @@ class LouvoresListView extends ConsumerWidget {
         return Column(
           children: [
             // Contador de resultados
-            if (showResultCount)
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.md,
-                  vertical: AppSpacing.sm,
-                ),
-                child: Row(
-                  children: [
-                    Text(
-                      'Mostrando ${filteredLouvores.length} de $totalLouvores louvores',
-                      style: AppTextStyles.caption.copyWith(
-                        color: AppColors.textLight.withOpacity(0.8),
-                      ),
-                    ),
-                  ],
-                ),
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: AppSpacing.sm,
               ),
+              child: Row(
+                children: [
+                  Text(
+                    'Mostrando ${paginatedLouvores.length} de $totalLouvores louvores',
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.textLight.withOpacity(0.8),
+                    ),
+                  ),
+                ],
+              ),
+            ),
             // Grid de louvores - ocupa todo o espaço disponível
             Expanded(
-              child: _buildGridView(context, filteredLouvores),
+              child: _buildGridView(context, paginatedLouvores),
             ),
           ],
         );

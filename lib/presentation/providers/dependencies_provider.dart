@@ -19,6 +19,7 @@ import '../../../core/errors/result.dart';
 import '../../../core/errors/failures.dart';
 import '../../../core/models/pdf_viewer_mode.dart';
 import '../../../core/services/pdf_action_service.dart';
+import '../../../core/models/sort_order.dart' show SortOrder, SortOrderExtension, sortOrderFromStorageString;
 
 /// Provider para SharedPreferences
 final sharedPreferencesProvider = FutureProvider<SharedPreferences>((ref) async {
@@ -650,5 +651,169 @@ final filteredPlaylistsProvider = Provider<List<Playlist>>((ref) {
   });
 
   return filtered;
+});
+
+// ========== FASE 7: Providers de Ordenação e Paginação ==========
+
+/// Provider para carregar ordenação salva do storage
+final savedSortOrderProvider = FutureProvider<SortOrder>((ref) async {
+  final localStorage = ref.watch(localStorageProvider);
+  final saved = await localStorage.getString(StorageKeys.sortOrder);
+  return saved != null 
+      ? sortOrderFromStorageString(saved)
+      : SortOrder.number;
+});
+
+/// Provider para ordenação (StateNotifierProvider)
+final sortOrderProvider = StateNotifierProvider<SortOrderNotifier, SortOrder>((ref) {
+  final saved = ref.watch(savedSortOrderProvider);
+  final notifier = SortOrderNotifier(ref, saved.valueOrNull ?? SortOrder.number);
+  // Carregar do storage quando o provider for criado
+  saved.whenData((order) {
+    notifier.loadFromStorage();
+  });
+  return notifier;
+});
+
+/// Notifier para gerenciar ordenação com persistência
+class SortOrderNotifier extends StateNotifier<SortOrder> {
+  SortOrderNotifier(this.ref, SortOrder initial) : super(initial);
+
+  final Ref ref;
+
+  Future<void> loadFromStorage() async {
+    final localStorage = ref.read(localStorageProvider);
+    final saved = await localStorage.getString(StorageKeys.sortOrder);
+    if (saved != null) {
+      state = sortOrderFromStorageString(saved);
+    }
+  }
+
+  Future<void> setSortOrder(SortOrder order) async {
+    state = order;
+    await _saveToStorage();
+  }
+
+  Future<void> _saveToStorage() async {
+    final localStorage = ref.read(localStorageProvider);
+    await localStorage.saveString(StorageKeys.sortOrder, state.toStorageString());
+  }
+}
+
+/// Provider para carregar itens por página salvos do storage
+final savedItemsPerPageProvider = FutureProvider<int>((ref) async {
+  final localStorage = ref.watch(localStorageProvider);
+  final saved = await localStorage.getInt(StorageKeys.itemsPerPage);
+  return (saved != null && saved > 0) ? saved : 20; // Padrão: 20 itens por página
+});
+
+/// Provider para itens por página (StateNotifierProvider)
+final itemsPerPageProvider = StateNotifierProvider<ItemsPerPageNotifier, int>((ref) {
+  final saved = ref.watch(savedItemsPerPageProvider);
+  final notifier = ItemsPerPageNotifier(ref, saved.valueOrNull ?? 20);
+  // Carregar do storage quando o provider for criado
+  saved.whenData((_) {
+    notifier.loadFromStorage();
+  });
+  return notifier;
+});
+
+/// Notifier para gerenciar itens por página com persistência
+class ItemsPerPageNotifier extends StateNotifier<int> {
+  ItemsPerPageNotifier(this.ref, int initial) : super(initial);
+
+  final Ref ref;
+
+  Future<void> loadFromStorage() async {
+    final localStorage = ref.read(localStorageProvider);
+    final saved = await localStorage.getInt(StorageKeys.itemsPerPage);
+    if (saved != null && saved > 0) {
+      state = saved;
+    }
+  }
+
+  Future<void> setItemsPerPage(int items) async {
+    state = items;
+    await _saveToStorage();
+  }
+
+  Future<void> _saveToStorage() async {
+    final localStorage = ref.read(localStorageProvider);
+    await localStorage.saveInt(StorageKeys.itemsPerPage, state);
+  }
+}
+
+/// Provider para página atual (StateProvider)
+final currentPageProvider = StateProvider<int>((ref) => 1);
+
+/// Provider para louvores ordenados (computed)
+final sortedLouvoresProvider = Provider<AsyncValue<List<Louvor>>>((ref) {
+  final filteredAsync = ref.watch(filteredLouvoresProvider);
+  final sortOrder = ref.watch(sortOrderProvider);
+
+  return filteredAsync.when(
+    data: (louvores) {
+      final sorted = List<Louvor>.from(louvores);
+      
+      switch (sortOrder) {
+        case SortOrder.number:
+          sorted.sort((a, b) {
+            // Converter números para int para ordenação numérica
+            final numA = int.tryParse(a.numero) ?? 0;
+            final numB = int.tryParse(b.numero) ?? 0;
+            return numA.compareTo(numB);
+          });
+          break;
+        case SortOrder.name:
+          sorted.sort((a, b) {
+            // Ordenação alfabética normalizada
+            final nameA = TextNormalization.normalizeText(a.nome);
+            final nameB = TextNormalization.normalizeText(b.nome);
+            return nameA.compareTo(nameB);
+          });
+          break;
+      }
+      
+      return AsyncValue.data(sorted);
+    },
+    loading: () => const AsyncValue.loading(),
+    error: (error, stackTrace) => AsyncValue.error(error, stackTrace),
+  );
+});
+
+/// Provider para louvores paginados (computed)
+final paginatedLouvoresProvider = Provider<AsyncValue<List<Louvor>>>((ref) {
+  final sortedAsync = ref.watch(sortedLouvoresProvider);
+  final currentPage = ref.watch(currentPageProvider);
+  final itemsPerPage = ref.watch(itemsPerPageProvider);
+
+  return sortedAsync.when(
+    data: (louvores) {
+      final startIndex = (currentPage - 1) * itemsPerPage;
+      final endIndex = startIndex + itemsPerPage;
+      final paginated = louvores.sublist(
+        startIndex.clamp(0, louvores.length),
+        endIndex.clamp(0, louvores.length),
+      );
+      return AsyncValue.data(paginated);
+    },
+    loading: () => const AsyncValue.loading(),
+    error: (error, stackTrace) => AsyncValue.error(error, stackTrace),
+  );
+});
+
+/// Provider para total de páginas (computed)
+final totalPagesProvider = Provider<AsyncValue<int>>((ref) {
+  final sortedAsync = ref.watch(sortedLouvoresProvider);
+  final itemsPerPage = ref.watch(itemsPerPageProvider);
+
+  return sortedAsync.when(
+    data: (louvores) {
+      final totalPages = (louvores.length / itemsPerPage).ceil();
+      return AsyncValue.data(totalPages > 0 ? totalPages : 1);
+    },
+    loading: () => const AsyncValue.loading(),
+    error: (error, stackTrace) => AsyncValue.error(error, stackTrace),
+  );
 });
 

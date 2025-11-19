@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/app_border_radius.dart';
@@ -7,6 +8,7 @@ import '../../core/theme/app_shadows.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../data/models/louvor.dart';
 import '../../core/services/pdf_action_service.dart';
+import '../../core/models/pdf_viewer_mode.dart';
 import '../providers/dependencies_provider.dart';
 import 'app_card.dart';
 
@@ -27,7 +29,10 @@ class LouvorCard extends ConsumerWidget {
     final isInCarousel = carouselLouvores.any((l) => l.pdfId == louvor.pdfId);
 
     return AppCard(
-      onTap: onTap ?? () => _handlePdfAction(context, ref),
+      onTap: onTap ?? () {
+        debugPrint('[LouvorCard] Card clicado');
+        _handlePdfAction(context, ref);
+      },
       elevation: AppCardElevation.medium,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -56,17 +61,18 @@ class LouvorCard extends ConsumerWidget {
                 ),
               ),
               // Botão de adicionar ao carousel
-              IconButton(
-                icon: Icon(
-                  isInCarousel ? Icons.check_circle : Icons.add_circle_outline,
-                  color: isInCarousel ? AppColors.success : AppColors.gold,
+              GestureDetector(
+                onTap: () {
+                  debugPrint('[LouvorCard] Botão carousel clicado');
+                  _handleAddToCarousel(context, ref);
+                },
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Icon(
+                    isInCarousel ? Icons.check_circle : Icons.add_circle_outline,
+                    color: isInCarousel ? AppColors.success : AppColors.gold,
+                  ),
                 ),
-                onPressed: () => _handleAddToCarousel(context, ref),
-                tooltip: isInCarousel
-                    ? 'Já está no carousel'
-                    : 'Adicionar ao carousel',
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
               ),
             ],
           ),
@@ -131,6 +137,24 @@ class LouvorCard extends ConsumerWidget {
   Future<void> _handlePdfAction(BuildContext context, WidgetRef ref) async {
     final pdfActionService = ref.read(pdfActionServiceProvider);
     final preferredMode = ref.read(preferredPdfViewerModeProvider);
+
+    debugPrint('[LouvorCard] Modo preferido: $preferredMode');
+    debugPrint('[LouvorCard] PDF ID: ${louvor.pdfId}');
+
+    // Se for modo interno, navegar diretamente para o leitor
+    if (preferredMode == PdfViewerMode.internal) {
+      debugPrint('[LouvorCard] Navegando para leitor interno');
+      if (context.mounted) {
+        final url = '/leitor?file=${Uri.encodeComponent(louvor.pdfId)}'
+            '&titulo=${Uri.encodeComponent(louvor.nome)}'
+            '&subtitulo=${Uri.encodeComponent('${louvor.numero} - ${louvor.classificacao}')}';
+        debugPrint('[LouvorCard] URL: $url');
+        context.push(url);
+      } else {
+        debugPrint('[LouvorCard] Context não está mounted');
+      }
+      return;
+    }
 
     // Mostrar loading
     if (context.mounted) {
